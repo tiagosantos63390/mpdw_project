@@ -36,8 +36,8 @@
 ### 2.4 Constrained Embedding Search – **Next Steps**
 - ✅ Text based search, e.g., for keyword-based search;
 - ✅Embeddings based search; e.g., for semantic search;
-- ⬜ Add support for **filterable fields** (e.g. duration, tags)
-- ⬜ Implement search with **boolean filters** (e.g., `"woman" AND duration < 180s`)
+- ✅ Add support for **filterable fields** (e.g. duration, tags)
+- ✅ Implement search with **boolean filters** (e.g., `"woman" AND duration < 180s`)
 - ⬜ Propose and evaluate optimal index mappings
 
 ---
