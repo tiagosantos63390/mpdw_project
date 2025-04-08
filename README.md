@@ -38,15 +38,15 @@
 - ✅Embeddings based search; e.g., for semantic search;
 - ✅ Add support for **filterable fields** (e.g. duration, tags)
 - ✅ Implement search with **boolean filters** (e.g., `"woman" AND duration < 180s`)
-- ⬜ Propose and evaluate optimal index mappings
+- ⬜ Propose and evaluate optimal index mappings   **???**
 
 ---
 
 ### 2.5 Contextual Embeddings & Self-Attention – **Pending**
-- ⬜ Visualize contextual word embeddings (layer-wise)
-- ⬜ Analyze positional embeddings (repetition behavior)
-- ⬜ Examine self-attention in dual vs. cross encoders
-- ⬜ Visualize token attention across layers
+- ✅ Visualize contextual word embeddings (layer-wise)
+- ✅ Analyze positional embeddings (repetition behavior)
+- ✅ Examine self-attention in dual vs. cross encoders
+- ✅ Visualize token attention across layers
 
 ---
 
