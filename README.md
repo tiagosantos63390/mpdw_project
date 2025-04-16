@@ -1,5 +1,11 @@
 # mpdw_project
 
+
+71802 André Santos
+71921 Tiago Santos
+70663 Maximo Volynets
+
+
 ## ✅ Phase 1 Progress Summary
 
 ### 2.1 Video Data and Metadata
@@ -28,7 +34,7 @@
 - ✅ Computed embeddings using `all-MiniLM-L6-v2` (Sentence-BERT)
 - ✅ Indexed embeddings in OpenSearch
 - ✅ Performed semantic search using KNN vector queries
-- ❌ Compared BM25 vs. semantic search results
+- ✅ Compared BM25 vs. semantic search results
 - ❌ *Embeddings not persisted to file (optional step skipped)*
 
 ---
@@ -38,7 +44,7 @@
 - ✅Embeddings based search; e.g., for semantic search;
 - ✅ Add support for **filterable fields** (e.g. duration, tags)
 - ✅ Implement search with **boolean filters** (e.g., `"woman" AND duration < 180s`)
-- ⬜ Propose and evaluate optimal index mappings   **???**
+- ✅ Propose and evaluate optimal index mappings  
 
 ---
 
@@ -56,6 +62,6 @@
 
 ---
 
-**✔️ Phase 1 Completion: ~75%**
+**✔️ Phase 1 Completion: ~100%**
 - All core indexing and search functionality is complete.
 - Filtering and embedding visualization to be finalized in upcoming steps.
