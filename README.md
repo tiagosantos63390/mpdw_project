@@ -65,3 +65,91 @@
 **✔️ Phase 1 Completion: ~100%**
 - All core indexing and search functionality is complete.
 - Filtering and embedding visualization to be finalized in upcoming steps.
+
+
+
+## ⬜ Phase 2 Progress Summary
+
+### 🔹 1. Cross-Modal Retrieval with CLIP
+
+- ⬜ **Extract Keyframes**
+  - Sample one frame every 2 seconds.
+  - Save as JPEGs in `data/frames/`.
+
+- ⬜ **Compute CLIP Embeddings**
+  - Use CLIP to compute:
+    - `image_vec` for keyframes.
+    - `text_vec` for captions.
+
+- ⬜ **Extend OpenSearch Index**
+  - Add a new field:
+    ```json
+    "image_vec": { "type": "knn_vector", "dimension": 512 }
+    ```
+
+- ⬜ **Index Keyframes**
+  - Index each frame with:
+    - `video_id`, `timestamp`, `image_path`, `image_vec`.
+
+- ⬜ **Implement Search Queries**
+  - ⬜ Text → Image
+  - ⬜ Image → Image
+  - ⬜ (Optional) Text + Image → Image
+
+- ⬜ **Evaluate Retrieval**
+  - Compare cross-modal vs. unimodal.
+  - Log top-5 results for each query type.
+
+---
+
+### 🔹 2. Visual Question Answering with LLaVA
+
+- ⬜ **Set Up LLaVA**
+  - Use the API or run locally (GPU ≥ 12 GB).
+
+- ⬜ **Retrieval-Augmented VQA**
+  - ⬜ Encode the visual question (text).
+  - ⬜ Use CLIP to retrieve top-1 frame.
+  - ⬜ Pass frame + question to LLaVA.
+  - ⬜ Collect and log the answer.
+
+- ⬜ **Evaluate VQA**
+  - Prepare 10–20 questions per video.
+  - Manual or automatic assessment.
+
+---
+
+### 🔹 3. Interpretability of LVLMs
+
+- ⬜ **Attention Maps**
+  - Visualize attention weights from CLIP and/or LLaVA.
+
+- ⬜ **Relevancy Maps**
+  - Apply Grad-CAM or similar over image inputs.
+
+- ⬜ **Causal Graphs (Advanced)**
+  - Explore masking-based influence on outputs.
+
+- ⬜ **Analysis**
+  - Discuss differences in focus between questions, images, and answers.
+  - Identify hallucination or bias cases.
+
+---
+
+### 💾 Optional: Persistent Storage
+
+- ⬜ Use `pickle`, `HDF5`, or `parquet` to store:
+  - CLIP embeddings
+  - VQA answers
+
+---
+
+### 📝 Reporting Guidelines
+
+Include this phase as a 5-page section in your report:
+- CLIP + cross-modal indexing
+- Llava + QA pipeline
+- Retrieval/VQA results
+- Interpretability insights
+
+Report latex link: https://www.overleaf.com/2958122766xhmchvsvpwyj#6c7348
