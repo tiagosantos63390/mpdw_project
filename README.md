@@ -73,30 +73,30 @@
 ### 🔹 1. Cross-Modal Retrieval with CLIP
 
 - ⬜ **Extract Keyframes**
-  - Sample one frame every 2 seconds.
-  - Save as JPEGs in `data/frames/`.
+  - ✅ Sample one frame every 2 seconds.
+  - ✅ Save as JPEGs in `data/frames/`.
 
 - ⬜ **Compute CLIP Embeddings**
   - Use CLIP to compute:
-    - `image_vec` for keyframes.
-    - `text_vec` for captions.
+    - ✅ `image_vec` for keyframes.
+    - ✅ `text_vec` for captions.
 
 - ⬜ **Extend OpenSearch Index**
-  - Add a new field:
+  - ✅ Add a new field:
     ```json
     "image_vec": { "type": "knn_vector", "dimension": 512 }
     ```
 
 - ⬜ **Index Keyframes**
-  - Index each frame with:
+  - ✅ Index each frame with:
     - `video_id`, `timestamp`, `image_path`, `image_vec`.
 
 - ⬜ **Implement Search Queries**
-  - ⬜ Text → Image
-  - ⬜ Image → Image
+  - ⬜ ✅ Text → Image
+  - ⬜ ✅ Image → Image
   - ⬜ (Optional) Text + Image → Image
 
-- ⬜ **Evaluate Retrieval**
+- ✅ **Evaluate Retrieval**
   - Compare cross-modal vs. unimodal.
   - Log top-5 results for each query type.
 
