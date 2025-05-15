@@ -72,28 +72,28 @@
 
 ### 🔹 1. Cross-Modal Retrieval with CLIP
 
-- ⬜ **Extract Keyframes**
+- **Extract Keyframes**
   - ✅ Sample one frame every 2 seconds.
   - ✅ Save as JPEGs in `data/frames/`.
 
-- ⬜ **Compute CLIP Embeddings**
+- **Compute CLIP Embeddings**
   - Use CLIP to compute:
     - ✅ `image_vec` for keyframes.
     - ✅ `text_vec` for captions.
 
-- ⬜ **Extend OpenSearch Index**
+- **Extend OpenSearch Index**
   - ✅ Add a new field:
     ```json
     "image_vec": { "type": "knn_vector", "dimension": 512 }
     ```
 
-- ⬜ **Index Keyframes**
+- **Index Keyframes**
   - ✅ Index each frame with:
     - `video_id`, `timestamp`, `image_path`, `image_vec`.
 
-- ⬜ **Implement Search Queries**
-  - ⬜ ✅ Text → Image
-  - ⬜ ✅ Image → Image
+- **Implement Search Queries**
+  - ✅ Text → Image
+  - ✅ Image → Image
   - ⬜ (Optional) Text + Image → Image
 
 - ✅ **Evaluate Retrieval**
@@ -104,18 +104,18 @@
 
 ### 🔹 2. Visual Question Answering with LLaVA
 
-- ⬜ **Set Up LLaVA**
+- ✅ **Set Up LLaVA**
   - Use the API or run locally (GPU ≥ 12 GB).
+  - Used: API
 
-- ⬜ **Retrieval-Augmented VQA**
-  - ⬜ Encode the visual question (text).
-  - ⬜ Use CLIP to retrieve top-1 frame.
-  - ⬜ Pass frame + question to LLaVA.
-  - ⬜ Collect and log the answer.
+- **Retrieval-Augmented VQA**
+  - ✅ Encode the visual question (text).
+  - ✅ Use CLIP to retrieve top-1 frame.
+  - ✅ Pass frame + question to LLaVA.
+  - ✅ Collect and log the answer.
 
-- ⬜ **Evaluate VQA**
-  - Prepare 10–20 questions per video.
-  - Manual or automatic assessment.
+- ✅ **Evaluate VQA**
+  - Prepare 1 question per video.
 
 ---
 
@@ -136,7 +136,7 @@
 
 ---
 
-### 💾 Optional: Persistent Storage
+### Optional: Persistent Storage
 
 - ⬜ Use `pickle`, `HDF5`, or `parquet` to store:
   - CLIP embeddings
@@ -144,7 +144,7 @@
 
 ---
 
-### 📝 Reporting Guidelines
+### Reporting Guidelines
 
 Include this phase as a 5-page section in your report:
 - CLIP + cross-modal indexing
