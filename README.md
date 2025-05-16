@@ -121,35 +121,17 @@
 
 ### 🔹 3. Interpretability of LVLMs
 
-- ⬜ **Attention Maps**
+- ✅ **Attention Maps**
   - Visualize attention weights from CLIP and/or LLaVA.
 
-- ⬜ **Relevancy Maps**
+- ✅ **Relevancy Maps**
   - Apply Grad-CAM or similar over image inputs.
 
-- ⬜ **Causal Graphs (Advanced)**
+- ✅ **Causal Graphs (Advanced)**
   - Explore masking-based influence on outputs.
 
-- ⬜ **Analysis**
+- ✅ **Analysis**
   - Discuss differences in focus between questions, images, and answers.
   - Identify hallucination or bias cases.
-
----
-
-### Optional: Persistent Storage
-
-- ⬜ Use `pickle`, `HDF5`, or `parquet` to store:
-  - CLIP embeddings
-  - VQA answers
-
----
-
-### Reporting Guidelines
-
-Include this phase as a 5-page section in your report:
-- CLIP + cross-modal indexing
-- Llava + QA pipeline
-- Retrieval/VQA results
-- Interpretability insights
 
 Report latex link: https://www.overleaf.com/2958122766xhmchvsvpwyj#6c7348
