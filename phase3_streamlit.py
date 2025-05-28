@@ -86,15 +86,29 @@ def display_similar_frames(query_frame_path, k=5):
         result_paths.append(img_path)
     return result_paths
 
+def retrieve_frame_by_text(question, video_id):
+    inputs = clip_processor(text=question, return_tensors="pt", padding=True)
+    with torch.no_grad():
+        query_vec = clip_model.get_text_features(**inputs)
+        query_vec = (query_vec / query_vec.norm(p=2)).squeeze().tolist()
 
-
-# ------ STREAMLIT ------
-
-st.set_page_config(page_title="Visual Similarity Navigation", layout="wide")
-
-st.title("Visual Similarity Navigation using CLIP and OpenSearch")
-
-st.sidebar.header("Configuration")
+    query_knn = {
+        "size": 1,
+        "_source": ["video_id", "image_path"],
+        "query": {
+            "bool": {
+                "must": [
+                    {"term": {"video_id": video_id}},
+                    {"knn": {"image_vec": {"vector": query_vec, "k": 1}}}
+                ]
+            }
+        }
+    }
+    response = client.search(index=index_name, body=query_knn)
+    hits = response["hits"]["hits"]
+    if not hits:
+        return None
+    return hits[0]["_source"]["image_path"]
 
 # Video selection
 video_names_and_ids = [
@@ -110,44 +124,114 @@ video_names_and_ids = [
     {'name': "Preparing Angel Hair Pasta", 'id': "v_Mkljhl3D9-Q"}
 ]
 
+
+# ------ STREAMLIT UI LAYOUT ------
+
+st.set_page_config(page_title="Visual Similarity Navigation", layout="wide")
+st.title("Visual Similarity Navigation using CLIP and OpenSearch")
+
+col1, col2 = st.columns([1.3, 2])
+
+# Sidebar
+st.sidebar.header("Configuration")
 video_names = [v["name"] for v in video_names_and_ids]
 selected_name = st.sidebar.selectbox("Select a video to explore", video_names)
 selected_video_id = next(v["id"] for v in video_names_and_ids if v["name"] == selected_name)
 frame_folder = f"data/frames/{selected_video_id}"
-
 # Number of results
 k = st.sidebar.slider("Number of similar frames to display", 1, 10, 5)
 
 # Load frames
-frame_files = []
-if os.path.exists(frame_folder):
-    frame_files = sorted([f for f in os.listdir(frame_folder) if f.endswith(".jpg")])
+frame_files = sorted([f for f in os.listdir(frame_folder) if f.endswith(".jpg")]) if os.path.exists(frame_folder) else []
+
+# Initialize query_path so it's accessible across all blocks
+query_path = None
+frame_index = 0
+selected_frame = None
 
 if frame_files:
-    st.subheader("Frame Selection")
-
-    # Slider for selecting frame index
-    frame_index = st.slider("Select position in video (frame index)", 0, len(frame_files)-1, 0)
+    frame_index = st.slider("Frame index", 0, len(frame_files) - 1, 0)
     selected_frame = frame_files[frame_index]
     query_path = os.path.join(frame_folder, selected_frame)
-    
-    time_seconds = frame_index * 2
-    minutes = time_seconds // 60
-    seconds = time_seconds % 60
-    st.markdown(f"**Time in video:** {int(minutes)} min {int(seconds)} sec")
 
-    st.image(query_path, caption=f"Selected keyframe: {selected_frame}", use_container_width=True)
+# Initialize chat history
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+    if "last_image_path" not in st.session_state:
+        st.session_state.last_image_path = None
 
-    if st.button("Find Similar Frames"):
-        similar = display_similar_frames(query_path, k=k)
-        st.subheader("Similar Frames")
-        cols = st.columns(min(k, 5))
-        for i, path in enumerate(similar):
-            with cols[i % len(cols)]:
-                st.image(path, caption=(os.path.basename(path)), use_container_width=True)
-else:
-    st.warning("No frames found for this video.")
+# LEFT: Chatbox
+with col1:
+    st.subheader("Ask about the current frame")
 
+    # Display previous chat
+    for msg in st.session_state.chat_history:
+        role = "user" if msg["role"] == "user" else "bot"
+        st.markdown(f"**{role}**: {msg['content']}")
+
+    user_question = st.text_input("Enter your question:", key="llava_chat_question")
+
+    if st.button("Ask Llava") and user_question:
+        search_keywords = ["show", "give me", "find", "search", "frame of", "what video", "who is", "where is"]
+        lower_q = user_question.lower()
+
+        if any(keyword in lower_q for keyword in search_keywords):
+            best_frame_path = retrieve_frame_by_text(user_question, selected_video_id)
+            if best_frame_path:
+                st.session_state.last_image_path = best_frame_path
+                query_path = best_frame_path
+                selected_frame = os.path.basename(best_frame_path)
+                frame_index = frame_files.index(selected_frame) if selected_frame in frame_files else 0
+            else:
+                st.warning("No frame matched your query. Try rephrasing!")
+                query_path = st.session_state.last_image_path
+        else:
+            query_path = st.session_state.last_image_path
+
+            if query_path is None:
+                st.error("No image selected! Ask something like 'show me a man running' first.")
+            else:
+                with open(query_path, "rb") as img_file:
+                    image_data = base64.b64encode(img_file.read()).decode('utf-8')
+
+            st.session_state.chat_history.append({
+                "role": "user", "content": user_question, "images": [image_data]
+            })
+
+            try:
+                response = client_ollama.chat(
+                    model="llava-phi3:latest",
+                    messages=st.session_state.chat_history
+                )
+                llava_reply = response["message"]["content"]
+                st.session_state.chat_history.append({
+                    "role": "assistant", "content": llava_reply
+                })
+                st.success(f"LLaVA says: {llava_reply}")
+            except Exception as e:
+                st.error(f"Error communicating with LLaVA: {str(e)}")
+
+# RIGHT: Image + Frame Navigation
+with col2:
+    if frame_files:
+        st.subheader("Frame Selection")
+
+        time_seconds = frame_index * 2
+        minutes = time_seconds // 60
+        seconds = time_seconds % 60
+        st.markdown(f"**Time in video:** {int(minutes)} min {int(seconds)} sec")
+
+        st.image(query_path, caption=f"Selected frame: {selected_frame}", use_container_width=True)
+
+        if st.button("Find Similar Frames"):
+            similar = display_similar_frames(query_path, k=k)
+            st.subheader("Similar Frames")
+            cols = st.columns(min(k, 5))
+            for i, path in enumerate(similar):
+                with cols[i % len(cols)]:
+                    st.image(path, caption=os.path.basename(path), use_container_width=True)
+    else:
+        st.warning("No frames found in this folder.")
 # ------------------------------------------------------------
 
 # ------------ Ask LLaVa Section -----------------------------
@@ -155,7 +239,7 @@ else:
 st.markdown("---")
 st.markdown("### Ask any question about the current frame!")
 
-user_question = st.text_input("Enter your question about the current frame:", key="llava_question")
+user_question_bottom = st.text_input("Enter your question about the current frame:", key="llava_bottom_question")
 
 if st.button("Ask LLava"):
     st.markdown("LLaVA is thinking...")
