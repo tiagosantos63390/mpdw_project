@@ -127,32 +127,45 @@ video_names_and_ids = [
 
 # ------ STREAMLIT UI LAYOUT ------
 
-st.set_page_config(page_title="Visual Similarity Navigation", layout="wide")
-st.title("Visual Similarity Navigation using CLIP and OpenSearch")
+st.set_page_config(page_title="Conversational agent", layout="wide")
+st.title("Dialog manager with controlled dialog state-tracking")
 
-col1, col2 = st.columns([1.3, 2])
+col1, col2 = st.columns([1, 1])
 
-# Sidebar
-st.sidebar.header("Configuration")
-video_names = [v["name"] for v in video_names_and_ids]
-selected_name = st.sidebar.selectbox("Select a video to explore", video_names)
-selected_video_id = next(v["id"] for v in video_names_and_ids if v["name"] == selected_name)
-frame_folder = f"data/frames/{selected_video_id}"
-# Number of results
-k = st.sidebar.slider("Number of similar frames to display", 1, 10, 5)
-
-# Load frames
-frame_files = sorted([f for f in os.listdir(frame_folder) if f.endswith(".jpg")]) if os.path.exists(frame_folder) else []
-
-# Initialize query_path so it's accessible across all blocks
+# Initialize variables
 query_path = None
 frame_index = 0
 selected_frame = None
 
-if frame_files:
-    frame_index = st.slider("Frame index", 0, len(frame_files) - 1, 0)
-    selected_frame = frame_files[frame_index]
-    query_path = os.path.join(frame_folder, selected_frame)
+# RIGHT: Configuration + Image + Frame Navigation
+with col2:
+    # Configuration Section (moved from sidebar)
+    st.subheader("Select the frame manually")
+    video_names = [v["name"] for v in video_names_and_ids]
+    selected_name = st.selectbox("Select a video to explore", video_names)
+    selected_video_id = next(v["id"] for v in video_names_and_ids if v["name"] == selected_name)
+    frame_folder = f"data/frames/{selected_video_id}"
+
+    # Load frames
+    frame_files = sorted([f for f in os.listdir(frame_folder) if f.endswith(".jpg")]) if os.path.exists(frame_folder) else []
+
+    if frame_files:
+        # Frame Index Slider (now above image)
+        frame_index = st.slider("Frame index", 0, len(frame_files) - 1, 0)
+        selected_frame = frame_files[frame_index]
+        query_path = os.path.join(frame_folder, selected_frame)
+        
+        time_seconds = frame_index * 2
+        minutes = time_seconds // 60
+        seconds = time_seconds % 60
+        st.markdown(f"**Time in video:** {int(minutes)} min {int(seconds)} sec")
+
+        # Frame Display Section
+        st.subheader("Selected Frame")
+        st.image(query_path, caption=f"Selected frame: {selected_frame}", use_container_width=True)
+        
+    else:
+        st.warning("No frames found in this folder.")
 
 # Initialize chat history
 if "chat_history" not in st.session_state:
@@ -164,14 +177,13 @@ if "chat_history" not in st.session_state:
 with col1:
     st.subheader("Ask about the current frame")
 
-    # Display previous chat
     for msg in st.session_state.chat_history:
         role = "user" if msg["role"] == "user" else "bot"
         st.markdown(f"**{role}**: {msg['content']}")
 
     user_question = st.text_input("Enter your question:", key="llava_chat_question")
 
-    if st.button("Ask Llava") and user_question:
+    if st.button("Submit") and user_question:
         search_keywords = ["show", "give me", "find", "search", "frame of", "what video", "who is", "where is"]
         lower_q = user_question.lower()
 
@@ -187,78 +199,25 @@ with col1:
                 query_path = st.session_state.last_image_path
         else:
             query_path = st.session_state.last_image_path
-
             if query_path is None:
                 st.error("No image selected! Ask something like 'show me a man running' first.")
             else:
                 with open(query_path, "rb") as img_file:
                     image_data = base64.b64encode(img_file.read()).decode('utf-8')
 
-            st.session_state.chat_history.append({
-                "role": "user", "content": user_question, "images": [image_data]
-            })
-
-            try:
-                response = client_ollama.chat(
-                    model="llava-phi3:latest",
-                    messages=st.session_state.chat_history
-                )
-                llava_reply = response["message"]["content"]
                 st.session_state.chat_history.append({
-                    "role": "assistant", "content": llava_reply
+                    "role": "user", "content": user_question, "images": [image_data]
                 })
-                st.success(f"LLaVA says: {llava_reply}")
-            except Exception as e:
-                st.error(f"Error communicating with LLaVA: {str(e)}")
 
-# RIGHT: Image + Frame Navigation
-with col2:
-    if frame_files:
-        st.subheader("Frame Selection")
-
-        time_seconds = frame_index * 2
-        minutes = time_seconds // 60
-        seconds = time_seconds % 60
-        st.markdown(f"**Time in video:** {int(minutes)} min {int(seconds)} sec")
-
-        st.image(query_path, caption=f"Selected frame: {selected_frame}", use_container_width=True)
-
-        if st.button("Find Similar Frames"):
-            similar = display_similar_frames(query_path, k=k)
-            st.subheader("Similar Frames")
-            cols = st.columns(min(k, 5))
-            for i, path in enumerate(similar):
-                with cols[i % len(cols)]:
-                    st.image(path, caption=os.path.basename(path), use_container_width=True)
-    else:
-        st.warning("No frames found in this folder.")
-# ------------------------------------------------------------
-
-# ------------ Ask LLaVa Section -----------------------------
-
-st.markdown("---")
-st.markdown("### Ask any question about the current frame!")
-
-user_question_bottom = st.text_input("Enter your question about the current frame:", key="llava_bottom_question")
-
-if st.button("Ask LLava"):
-    st.markdown("LLaVA is thinking...")
-
-    with open(query_path, "rb") as img_file:
-        image_data = base64.b64encode(img_file.read()).decode('utf-8')
-
-    try:
-        response = client_ollama.chat(
-            model="llava-phi3:latest",
-            messages=[{
-                'role': 'user',
-                'content': user_question,
-                'images': [image_data]
-            }]
-        )
-        answer = response['message']['content']
-        st.success(f" LLava says: {answer}")
-    except Exception as e:
-        st.error(f"Error communicating with LLaVA: {str(e)}")
-
-# ------------------------------------------------------------
+                try:
+                    response = client_ollama.chat(
+                        model="llava-phi3:latest",
+                        messages=st.session_state.chat_history
+                    )
+                    llava_reply = response["message"]["content"]
+                    st.session_state.chat_history.append({
+                        "role": "assistant", "content": llava_reply
+                    })
+                    st.success(f"LLaVA says: {llava_reply}")
+                except Exception as e:
+                    st.error(f"Error communicating with LLaVA: {str(e)}")
