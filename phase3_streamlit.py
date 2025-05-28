@@ -12,8 +12,11 @@ import matplotlib.pyplot as plt
 from IPython.display import display
 import numpy as np
 import streamlit as st
+import base64
+from ollama import Client
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
+client_ollama = Client(host='https://twiz.novasearch.org/ollama')
 
 host = 'api.novasearch.org'
 port = 443
@@ -144,5 +147,34 @@ if frame_files:
                 st.image(path, caption=(os.path.basename(path)), use_container_width=True)
 else:
     st.warning("No frames found for this video.")
+
+# ------------------------------------------------------------
+
+# ------------ Ask LLaVa Section -----------------------------
+
+st.markdown("---")
+st.markdown("### Ask any question about the current frame!")
+
+user_question = st.text_input("Enter your question about the current frame:", key="llava_question")
+
+if st.button("Ask LLava"):
+    st.markdown("LLaVA is thinking...")
+
+    with open(query_path, "rb") as img_file:
+        image_data = base64.b64encode(img_file.read()).decode('utf-8')
+
+    try:
+        response = client_ollama.chat(
+            model="llava-phi3:latest",
+            messages=[{
+                'role': 'user',
+                'content': user_question,
+                'images': [image_data]
+            }]
+        )
+        answer = response['message']['content']
+        st.success(f" LLava says: {answer}")
+    except Exception as e:
+        st.error(f"Error communicating with LLaVA: {str(e)}")
 
 # ------------------------------------------------------------
