@@ -170,42 +170,32 @@ def preprocess_text(text):
     # Join back into text
     return ' '.join(tokens)
 
-# Define intent-specific templates
-intent_templates = {
+# Intent-specific templates for zero-shot classification
+INTENT_TEMPLATES = {
     TEXT_TO_IMAGE: [
-        "The user wants to find a new frame that shows {}",
-        "The user is looking for a frame containing {}",
-        "The user wants to see a frame with {}",
-        "The user is searching for a frame showing {}",
-        "The user needs a frame that contains {}"
+        "The user wants to find a frame that matches this description: {}",
+        "The user is searching for a frame with this text: {}",
+        "The user is looking for a frame containing: {}"
     ],
     IMAGE_TO_IMAGE: [
-        "The user wants to find a frame similar to the current one",
-        "The user is looking for frames like the current frame",
-        "The user wants to see more frames like this",
-        "The user needs similar frames to the current one",
-        "The user is searching for frames that look like this"
+        "The user wants to find a frame similar to this one: {}",
+        "The user is looking for frames like the current one: {}",
+        "The user wants to see more frames like this: {}"
     ],
     IMAGE_AND_TEXT_TO_IMAGE: [
-        "The user wants to find a frame like this but with {}",
-        "The user is looking for a similar frame with {}",
-        "The user wants to see a frame like this but {}",
-        "The user needs a similar frame that {}",
-        "The user is searching for a frame like this with {}"
+        "The user wants to find a frame similar to this one but with these changes: {}",
+        "The user is looking for frames like the current one but modified to: {}",
+        "The user wants to see similar frames with these modifications: {}"
     ],
     IMAGE_TO_TEXT: [
-        "The user wants to know what is in this frame",
-        "The user is asking for a description of this frame",
-        "The user wants to understand what's happening in this frame",
-        "The user needs a description of the current frame",
-        "The user is asking about the content of this frame"
+        "The user wants to know what is happening in this frame: {}",
+        "The user is asking for a description of the current frame: {}",
+        "The user wants to understand what is shown in this frame: {}"
     ],
     GENERAL_CONVERSATION: [
-        "The user is engaging in general conversation",
-        "The user is making small talk",
-        "The user is greeting or saying goodbye",
-        "The user is asking for help or information",
-        "The user is making a general inquiry"
+        "The user is having a general conversation: {}",
+        "The user is making small talk: {}",
+        "The user is asking a general question: {}"
     ]
 }
 
@@ -225,64 +215,47 @@ def log_intent_detection(text, intent, confidence, all_scores, slots=None):
     st.session_state.intent_logs.append(log_entry)
 
 def detect_intent(text):
-    """Enhanced intent detection with preprocessing and better matching"""
+    """Detect the intent of the user's input using a combination of pattern matching and zero-shot classification."""
     # Preprocess the text
     processed_text = preprocess_text(text)
     
-    # First try pattern matching with improved patterns
+    # First try pattern matching with regex
     for intent, patterns in intent_examples.items():
         for pattern in patterns:
-            # Use regex for more flexible matching
-            pattern_regex = re.compile(r'\b' + re.escape(pattern.lower()) + r'\b')
-            if pattern_regex.search(processed_text):
-                # Additional context checks
-                if intent == IMAGE_TO_IMAGE:
-                    if not any(word in processed_text for word in ['similar', 'like', 'this', 'current']):
-                        continue
-                elif intent == TEXT_TO_IMAGE:
-                    # Ensure there's content after the pattern
-                    if not re.search(r'\b' + re.escape(pattern.lower()) + r'\s+\w+', processed_text):
-                        continue
-                return intent, 0.95
+            if re.search(pattern, processed_text, re.IGNORECASE):
+                # Get all scores for logging
+                all_scores = intent_classifier(
+                    processed_text,
+                    candidate_labels=intent_labels,
+                    hypothesis_template="The user is explicitly requesting to {}",
+                    multi_label=False
+                )
+                return intent, 0.95, all_scores  # High confidence for exact pattern matches
     
-    # Try intent-specific templates
-    best_result = None
-    best_score = 0
-    
-    for intent, templates in intent_templates.items():
-        for template in templates:
-            # For templates that need slot filling, try to extract the slot
-            if '{}' in template:
-                # Extract potential slot content
-                slot_match = re.search(r'\b(?:with|containing|showing|that|but)\s+([^.,!?]+)', processed_text)
-                if slot_match:
-                    filled_template = template.format(slot_match.group(1))
-                else:
-            continue
-            else:
-                filled_template = template
+    # If no pattern match, try zero-shot classification
+    try:
+        # Use a single template for consistent classification
+        result = intent_classifier(
+            processed_text,
+            candidate_labels=intent_labels,
+            hypothesis_template="The user is explicitly requesting to {}",
+            multi_label=False
+        )
+        
+        # Get the highest scoring intent
+        max_score = max(result['scores'])
+        best_intent = result['labels'][result['scores'].index(max_score)]
+        
+        if max_score >= 0.6:  # Confidence threshold
+            return best_intent, max_score, result
             
-            result = intent_classifier(
-                processed_text,
-                [intent],  # Try one intent at a time
-                hypothesis_template=filled_template,
-                multi_label=False
-            )
-            
-            if result['scores'][0] > best_score:
-                best_result = result
-                best_score = result['scores'][0]
+    except Exception as e:
+        print(f"Error in zero-shot classification: {str(e)}")
+        # Fall back to keyword matching if classification fails
+        return None, 0.0, None
     
-    # Get the best matching intent and its score
-    if best_result and best_score >= 0.6:
-        return best_result['labels'][0], best_score
-    
-    # Fallback to keyword-based detection with lower confidence
-    for intent, patterns in intent_examples.items():
-        if any(pattern.lower() in processed_text for pattern in patterns):
-            return intent, 0.7
-    
-    return None, 0.0
+    # If all else fails, use fallback
+    return None, 0.0, None
 
 def extract_slots(text, intent):
     """Enhanced slot extraction with validation and type checking"""
@@ -474,16 +447,16 @@ if "current_frame_index" not in st.session_state:
     st.session_state.current_frame_index = 0
 
 video_names_and_ids = [
-    {'name': "How to Cook Mashed Potatoes", 'id': "v_-rKS00dzFxQ"},
-    {'name': "London 2012 Olympics", 'id': "v_-fjUWhSM6Hc"},
-    {'name': "20 Exercises on Parallel Bars", 'id': "v_v7o9uSu9AVI"},
-    {'name': "Vin Diesel Breakdancing Throwback", 'id': "v_RJpWgi0EaUE"},
-    {'name': "Twickenham Festival 2015 Tug of War", 'id': "v_G7kqlq8WhRo"},
-    {'name': "Washing my Face", 'id': "v_jTMdMnbW9OI"},
-    {'name': "Girl in Balance Beam (gymnastics)", 'id': "v_9wtMJoqGTg0"},
-    {'name': "Epic Rollerblading Montage 80s", 'id': "v_Ffi7vDa3C2I"},
-    {'name': "'What U think about Rollerblading?'", 'id': "v_JRr3BruqS2Y"},
-    {'name': "Preparing Angel Hair Pasta", 'id': "v_Mkljhl3D9-Q"}
+    {'name': "How to make a Pasta Stir Fry With Eggs Indian Restaurant cooking 2018", 'id': "v_3jEnu5mEYA4"},
+    {'name': "Angel hair pasta with tomato, garlic & basil", 'id': "v_Gpocjp7hSzU"},
+    {'name': "Garlic Pasta Recipe", 'id': "v_vBCnsp-NEAg"},
+    {'name': "Pasta dishes for Athletes | The F Word", 'id': "v_UvPUywSVy1k"},
+    {'name': "How to Make an Omelette", 'id': "v_9DIDpTlfBWs"},
+    {'name': "3 Quick Beef Recipes I Make During The Week", 'id': "v_BOAgLMZ5tYw"},
+    {'name': "'Little Squid' Pasta with Gennaro", 'id': "v_nlkmPF8TBdQ"},
+    {'name': "Real Food For The Soul: Summer Salad Recipe", 'id': "v_Y2gFwWnli4g"},
+    {'name': "Eels with pasta - Recipes from Spain", 'id': "v_WVaYjd1F8kg"},
+    {'name': "Jamaican Toto (Coconut Cake) Recipe Video", 'id': "v_oHOR69nFt-4"}
 ]
 
 with col2:
@@ -502,13 +475,13 @@ with col2:
         if st.session_state.last_video_id is not None:  # Don't notify on first load
             st.session_state.chat_history.append({
                 "role": "assistant",
-                "content": f"Switched to video {selected_name}"
+                "content": f"Switched to video '{selected_name}'"
             })
         st.session_state.last_video_id = selected_video_id
         # Reset frame index to first frame when video changes
         st.session_state.current_frame_index = 0
     
-    frame_folder = f"data/frames/{selected_video_id}"
+    frame_folder = f"keyframes_cooking_videos/{selected_video_id}"
     frame_files = sorted([f for f in os.listdir(frame_folder) if f.endswith(".jpg")]) if os.path.exists(frame_folder) else []
 
     if frame_files:
@@ -534,8 +507,6 @@ with col1:
     for msg in st.session_state.chat_history:
         role = "User" if msg["role"] == "user" else "Bot"
         content = msg["content"]
-        if role == "User" and "intent_info" in msg:
-            content += msg["intent_info"]
         
         st.markdown(f"""
             <div style="background-color: {'rgb(61, 64, 66)' if role == 'User' else 'rgb(85, 89, 92)'};
@@ -552,22 +523,18 @@ with col1:
     
     if submit_button and user_question:
         # Detect intent and get slots
-        intent, confidence = detect_intent(user_question)
+        intent, confidence, all_scores = detect_intent(user_question)
         slots = extract_slots(user_question, intent) if intent in [TEXT_TO_IMAGE, IMAGE_AND_TEXT_TO_IMAGE] else None
         
         # Log intent detection
         log_intent_detection(user_question, intent if confidence >= 0.6 else None, confidence, 
-                           intent_classifier(user_question, intent_labels, 
-                                          hypothesis_template="The user is explicitly requesting to {}",
-                                          multi_label=False), 
-                           slots=slots)
+                        all_scores if all_scores else {"labels": [], "scores": []}, 
+                        slots=slots)
         
-        # Add user message with intent information
-        intent_info = f" (Intent: {intent}, Confidence: {confidence:.2f})" if intent else " (No intent detected)"
-                st.session_state.chat_history.append({
+        # Add user message without intent information
+        st.session_state.chat_history.append({
             "role": "user",
-            "content": user_question,
-            "intent_info": intent_info
+            "content": user_question
         })
         
         with st.spinner('Processing...'):
@@ -590,11 +557,10 @@ with col1:
                 if frame_path:
                     selected_frame = os.path.basename(frame_path)
                     st.session_state.current_frame_index = frame_files.index(selected_frame)
-                st.session_state.last_frame_id = selected_frame
+                    st.session_state.last_frame_id = selected_frame
                     response = f"I found a frame showing: {search_term}"
-            else:
+                else:
                     response = f"I couldn't find any frames showing: {search_term}"
-            
             elif intent == IMAGE_TO_IMAGE and frame_files:
                 current_vector = encode_frame_to_vector(query_path)
                 similar_frame_path = search_similar_frames(current_vector)
@@ -605,7 +571,6 @@ with col1:
                     response = f"I found a similar frame: {selected_frame}"
                 else:
                     response = "I couldn't find any similar frames."
-            
             elif intent == IMAGE_AND_TEXT_TO_IMAGE and frame_files:
                 modifications = slots.get("modifications", "")
                 frame_path = retrieve_frame_by_text_and_image(modifications, selected_video_id, query_path)
@@ -616,13 +581,13 @@ with col1:
                     response = f"I found a frame with your requested modifications: {modifications}"
                 else:
                     response = f"I couldn't find a frame with the requested modifications: {modifications}"
-            
             elif intent == IMAGE_TO_TEXT and frame_files:
                 response = get_frame_description(query_path, user_question)
             
             # Add bot response
-                    st.session_state.chat_history.append({
-                        "role": "assistant", 
+            st.session_state.chat_history.append({
+                "role": "assistant",
                 "content": response
-                    })
+            })
+            
             st.rerun()
