@@ -18,9 +18,4 @@ How to run the web app:
 
 $ streamlit run phase3_streamlit.py
 
-<<<<<<< Updated upstream
-
-Video link: 
-=======
 (it may take a while when oppening for the first time)
->>>>>>> Stashed changes
