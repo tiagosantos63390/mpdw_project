@@ -12,7 +12,7 @@ Code files from each phase:
    - video_phase1.ipynb -> main notebook with metrics and plots
    - phase3_streamlit -> runnable streamlit file to run the web app with the conversational agent
 
-Demonstration video of conversational agent: ...
+Demonstration video of conversational agent: https://www.youtube.com/watch?v=mgIct2YuKcI
 
 How to run the web app:
 
